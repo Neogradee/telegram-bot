@@ -28,7 +28,10 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile",
-        messages: [{ role: "user", content: userText }],
+        messages: [
+          { role: "system", content: "Responde sempre em português de Portugal. Usa vocabulário, ortografia e expressões típicas de Portugal, nunca do Brasil." },
+          { role: "user", content: userText },
+        ],
       }),
     });
 
