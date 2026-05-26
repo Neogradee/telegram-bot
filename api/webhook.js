@@ -85,12 +85,10 @@ export default async function handler(req, res) {
 
     await sendMessage(chatId, reply);
   } catch (err) {
-    console.error("Groq error:", err);
-    await sendMessage(chatId, "Erro ao gerar resposta. Tenta novamente.");
+    await sendMessage(chatId, "Groq error: " + String(err));
   }
   } catch (err) {
-    console.error("Handler error:", err);
-    await sendMessage(chatId, "Erro interno. Tenta novamente.");
+    await sendMessage(chatId, "Handler error: " + String(err));
   }
 
   res.status(200).send("OK");
