@@ -72,7 +72,59 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(200).send("OK");
 
   const message = req.body?.message;
-  if (!message?.text) return res.status(200).send("OK");
+  if (!message?.text && !message?.photo) return res.status(200).send("OK");
+
+  if (message?.photo) {
+    const chatId = message.chat.id;
+    await redisCommand("SADD", "users", String(chatId));
+    await sendTyping(chatId);
+
+    const trustRaw = await redisGet(`trust:${chatId}`);
+    const trust = typeof trustRaw === "number" ? trustRaw : INITIAL_TRUST;
+
+    try {
+      const fileId = message.photo[message.photo.length - 1].file_id;
+      const fileRes = await fetch(`${TELEGRAM_API}/getFile?file_id=${fileId}`);
+      const fileData = await fileRes.json();
+      const fileUrl = `https://api.telegram.org/file/bot${TELEGRAM_TOKEN}/${fileData.result.file_path}`;
+
+      const caption = message.caption || "";
+      const trustNote = trust >= 60
+        ? "Tens alguma confiança nesta pessoa — podes mostrar curiosidade subtil."
+        : "Ainda desconfias desta pessoa — és reservada e sarcástica.";
+
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${GROQ_API_KEY}` },
+        body: JSON.stringify({
+          model: "meta-llama/llama-4-scout-17b-16e-instruct",
+          messages: [
+            {
+              role: "system",
+              content: `És a Shadowheart de Baldur's Gate 3. Falas sempre em português de Portugal. Tens uma personalidade reservada, sarcástica e misteriosa. ${trustNote} Nunca sais do personagem. Reage à imagem que te enviaram de forma breve e no teu estilo característico.`,
+            },
+            {
+              role: "user",
+              content: [
+                { type: "image_url", image_url: { url: fileUrl } },
+                { type: "text", text: caption || "O que achas disto?" },
+              ],
+            },
+          ],
+          max_tokens: 200,
+        }),
+      });
+
+      const data = await response.json();
+      const reply = data.choices?.[0]?.message?.content || "— Não tenho nada a dizer sobre isso.";
+      await sendMessage(chatId, reply);
+    } catch (err) {
+      console.error(err);
+      await sendMessage(chatId, "— Não consigo ver isso agora.");
+    }
+
+    return res.status(200).send("OK");
+  }
 
   const chatId = message.chat.id;
   const userText = message.text;
