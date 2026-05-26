@@ -54,6 +54,7 @@ export default async function handler(req, res) {
     return res.status(200).send("OK");
   }
 
+  try {
   await sendTyping(chatId);
 
   const history = await redisGet(`history:${chatId}`);
@@ -84,8 +85,12 @@ export default async function handler(req, res) {
 
     await sendMessage(chatId, reply);
   } catch (err) {
-    console.error(err);
-    await sendMessage(chatId, "Erro ao processar a tua mensagem. Tenta novamente.");
+    console.error("Groq error:", err);
+    await sendMessage(chatId, "Erro ao gerar resposta. Tenta novamente.");
+  }
+  } catch (err) {
+    console.error("Handler error:", err);
+    await sendMessage(chatId, "Erro interno. Tenta novamente.");
   }
 
   res.status(200).send("OK");
