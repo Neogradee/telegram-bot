@@ -141,6 +141,19 @@ export default async function handler(req, res) {
   const trust = typeof trustRaw === "number" ? trustRaw : INITIAL_TRUST;
   const memoryObj = memory && typeof memory === "object" && !Array.isArray(memory) ? memory : {};
 
+  if (userText === "/comandos") {
+    await sendMessage(chatId,
+      `Comandos disponíveis:\n\n` +
+      `/comandos — mostra esta lista\n` +
+      `/estado — mostra o nível de confiança e o que a Shadowheart sabe sobre ti\n` +
+      `/sonho — ela partilha uma visão ou fragmento de memória perturbadora\n` +
+      `/diario — ela escreve uma entrada no diário sobre ti\n` +
+      `/reset — reinicia a conversa (mantém memória e confiança)\n\n` +
+      `Podes também enviar fotos e ela reagirá no seu estilo.`
+    );
+    return res.status(200).send("OK");
+  }
+
   if (userText === "/sonho") {
     await sendTyping(chatId);
     try {
