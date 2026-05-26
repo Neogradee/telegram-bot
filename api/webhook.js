@@ -5,20 +5,22 @@ const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
 const MAX_HISTORY = 20;
 
-async function redisGet(key) {
-  const res = await fetch(`${UPSTASH_URL}/get/${key}`, {
-    headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` },
+async function redisCommand(...args) {
+  const res = await fetch(UPSTASH_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${UPSTASH_TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify(args),
   });
-  const data = await res.json();
+  return res.json();
+}
+
+async function redisGet(key) {
+  const data = await redisCommand("GET", key);
   return data.result ? JSON.parse(data.result) : [];
 }
 
 async function redisSet(key, value) {
-  await fetch(`${UPSTASH_URL}/set/${key}`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${UPSTASH_TOKEN}`, "Content-Type": "application/json" },
-    body: JSON.stringify(JSON.stringify(value)),
-  });
+  await redisCommand("SET", key, JSON.stringify(value));
 }
 
 async function sendMessage(chatId, text) {
