@@ -15,8 +15,14 @@ async function redisCommand(...args) {
 }
 
 async function redisGet(key) {
-  const data = await redisCommand("GET", key);
-  return data.result ? JSON.parse(data.result) : [];
+  try {
+    const data = await redisCommand("GET", key);
+    if (!data || data.result === null || data.result === undefined) return [];
+    const parsed = typeof data.result === "string" ? JSON.parse(data.result) : data.result;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 async function redisSet(key, value) {
@@ -85,10 +91,10 @@ export default async function handler(req, res) {
 
     await sendMessage(chatId, reply);
   } catch (err) {
-    await sendMessage(chatId, "Groq error: " + String(err));
+    await sendMessage(chatId, "Erro ao gerar resposta. Tenta novamente.");
   }
   } catch (err) {
-    await sendMessage(chatId, "Handler error: " + String(err));
+    await sendMessage(chatId, "Erro interno. Tenta novamente.");
   }
 
   res.status(200).send("OK");
