@@ -77,6 +77,8 @@ export default async function handler(req, res) {
   const chatId = message.chat.id;
   const userText = message.text;
 
+  await redisCommand("SADD", "users", String(chatId));
+
   const [history, trustRaw, memory] = await Promise.all([
     redisGet(`history:${chatId}`),
     redisGet(`trust:${chatId}`),
@@ -86,6 +88,56 @@ export default async function handler(req, res) {
   const historyArr = Array.isArray(history) ? history : [];
   const trust = typeof trustRaw === "number" ? trustRaw : INITIAL_TRUST;
   const memoryObj = memory && typeof memory === "object" && !Array.isArray(memory) ? memory : {};
+
+  if (userText === "/sonho") {
+    await sendTyping(chatId);
+    try {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${GROQ_API_KEY}` },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [{
+            role: "system",
+            content: `És a Shadowheart de Baldur's Gate 3. Falas sempre em português de Portugal. Partilha um fragmento de sonho ou visão perturbadora relacionada com Shar, o teu passado misterioso ou memórias perdidas. Deve ser curto, poético e inquietante. Nunca sais do personagem.`,
+          }],
+          max_tokens: 200,
+        }),
+      });
+      const data = await response.json();
+      await sendMessage(chatId, data.choices[0].message.content);
+    } catch {
+      await sendMessage(chatId, "— Não me apetece falar sobre isso agora.");
+    }
+    return res.status(200).send("OK");
+  }
+
+  if (userText === "/diario") {
+    await sendTyping(chatId);
+    const memoryForDiary = memory && typeof memory === "object" ? memory : {};
+    const factos = Object.keys(memoryForDiary).length > 0
+      ? `O que sabes sobre esta pessoa: ${JSON.stringify(memoryForDiary)}.`
+      : "";
+    try {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${GROQ_API_KEY}` },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [{
+            role: "system",
+            content: `És a Shadowheart de Baldur's Gate 3. Falas sempre em português de Portugal. Escreve uma entrada no teu diário pessoal sobre a pessoa com quem tens falado — na tua perspetiva, no teu estilo reservado e sarcástico, com traços de vulnerabilidade oculta. ${factos} Nível de confiança atual: ${trust}/100. Nunca sais do personagem.`,
+          }],
+          max_tokens: 300,
+        }),
+      });
+      const data = await response.json();
+      await sendMessage(chatId, "📓 " + data.choices[0].message.content);
+    } catch {
+      await sendMessage(chatId, "— Os meus pensamentos não são para partilhar.");
+    }
+    return res.status(200).send("OK");
+  }
 
   if (userText === "/reset") {
     await redisSet(`history:${chatId}`, []);
