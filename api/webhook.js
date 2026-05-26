@@ -22,7 +22,7 @@ export default async function handler(req, res) {
   const userText = message.text;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     const result = await model.generateContent(userText);
     const reply = result.response.text();
     await sendMessage(chatId, reply);
