@@ -245,6 +245,7 @@ export default async function handler(req, res) {
     let reply = null;
     let newTrust = trust;
     let newMemory = { ...memoryObj };
+    const oldLabel = getTrustLabel(trust);
 
     try {
       const parsed = JSON.parse(rawReply);
@@ -262,6 +263,13 @@ export default async function handler(req, res) {
 
     if (!reply) reply = "— Não tenho nada a dizer sobre isso.";
 
+    const newLabel = getTrustLabel(newTrust);
+    const delta = newTrust - trust;
+    if (delta !== 0) {
+      const arrow = delta > 0 ? "↑" : "↓";
+      reply += `\n\n(${delta > 0 ? "+" : ""}${delta} confiança ${arrow})`;
+    }
+
     historyArr.push({ role: "assistant", content: reply });
     if (historyArr.length > MAX_HISTORY) historyArr.splice(0, historyArr.length - MAX_HISTORY);
 
@@ -272,6 +280,10 @@ export default async function handler(req, res) {
     ]);
 
     await sendMessage(chatId, reply);
+
+    if (oldLabel !== newLabel) {
+      await sendMessage(chatId, `[ ${oldLabel} → ${newLabel} ]`);
+    }
   } catch (err) {
     console.error(err);
     await sendMessage(chatId, "Erro ao processar a tua mensagem. Tenta novamente.");
