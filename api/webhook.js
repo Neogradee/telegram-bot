@@ -231,6 +231,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile",
+        response_format: { type: "json_object" },
         messages: [
           { role: "system", content: buildSystemPrompt(trust, memoryObj) },
           ...historyArr,
@@ -241,13 +242,13 @@ export default async function handler(req, res) {
     const data = await response.json();
     const rawReply = data.choices[0].message.content;
 
-    let reply = rawReply;
+    let reply = null;
     let newTrust = trust;
     let newMemory = { ...memoryObj };
 
     try {
       const parsed = JSON.parse(rawReply);
-      reply = parsed.resposta || rawReply;
+      reply = parsed.resposta || null;
       if (typeof parsed.confianca_delta === "number") {
         newTrust = Math.max(0, Math.min(100, trust + parsed.confianca_delta));
       }
@@ -255,8 +256,11 @@ export default async function handler(req, res) {
         newMemory = { ...newMemory, ...parsed.factos_novos };
       }
     } catch {
-      // fallback to raw reply if JSON parsing fails
+      const match = rawReply.match(/"resposta"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+      if (match) reply = match[1].replace(/\\"/g, '"').replace(/\\n/g, '\n');
     }
+
+    if (!reply) reply = "— Não tenho nada a dizer sobre isso.";
 
     historyArr.push({ role: "assistant", content: reply });
     if (historyArr.length > MAX_HISTORY) historyArr.splice(0, historyArr.length - MAX_HISTORY);
